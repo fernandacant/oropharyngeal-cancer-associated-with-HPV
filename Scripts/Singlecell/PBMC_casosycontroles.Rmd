@@ -446,4 +446,6 @@ for (i in seq_along(freq_tables)) {
 df <- as.data.frame(df)
 #write.csv(df, file = "Poblaciones_controles.csv", row.names = TRUE)
 
+cat .gitignoregit add Scripts/*
+git status
 

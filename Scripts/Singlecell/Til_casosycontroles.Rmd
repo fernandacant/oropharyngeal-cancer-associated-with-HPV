@@ -446,3 +446,4 @@ for (i in seq_along(freq_tables)) {
 df <- as.data.frame(df)
 write.csv(df, file = "PoblacionesTil_casos.csv", row.names = TRUE)
 
+
