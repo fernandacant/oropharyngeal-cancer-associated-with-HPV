@@ -1,0 +1,459 @@
+---
+title: "Untitled"
+output: html_document
+---
+
+library(dplyr)
+install.packages("htmltools")  # Instala la versión correcta
+(htmltools)  # Carga la versión correcta
+library(Seurat)  # Ahora carga el paquete Seurat
+library(tidyverse)
+library(pheatmap)
+library(Seurat)
+library(patchwork)
+library(celldex)
+library(SingleR)
+library(ggplot2)
+library(harmony)
+
+###cargar un solo set de datos
+## Casos (Del 146 al 160)
+pbmc.data1 <- Read10X(data.dir = "Caso_146/")
+pbmc.data2 <- Read10X(data.dir = "Caso_148/")
+pbmc.data3 <- Read10X(data.dir = "Caso_150/")
+pbmc.data4 <- Read10X(data.dir = "Caso_152/")
+pbmc.data5 <- Read10X(data.dir = "Caso_154/")
+pbmc.data6 <- Read10X(data.dir = "Caso_156/")
+pbmc.data7 <- Read10X(data.dir = "Caso_158/")
+pbmc.data8 <- Read10X(data.dir = "Caso_160/")
+## Control (Del 110 al 124)
+pbmc.data9 <- Read10X(data.dir = "Control_110/")
+pbmc.data10 <- Read10X(data.dir = "Control_112/")
+pbmc.data11 <- Read10X(data.dir = "Control_114/")
+pbmc.data12 <- Read10X(data.dir = "Control_116/")
+pbmc.data13 <- Read10X(data.dir = "Control_118/")
+pbmc.data14 <- Read10X(data.dir = "Control_120/")
+pbmc.data15 <- Read10X(data.dir = "Control_122/")
+pbmc.data16 <- Read10X(data.dir = "Control_124/")
+
+pbmc1 <- CreateSeuratObject(counts = pbmc.data1, project = "wt", min.cells = 3, min.features = 200)
+pbmc2 <- CreateSeuratObject(counts = pbmc.data2, project = "wt", min.cells = 3, min.features = 200)
+pbmc3 <- CreateSeuratObject(counts = pbmc.data3, project = "wt", min.cells = 3, min.features = 200)
+pbmc4 <- CreateSeuratObject(counts = pbmc.data4, project = "wt", min.cells = 3, min.features = 200)
+pbmc5 <- CreateSeuratObject(counts = pbmc.data5, project = "wt", min.cells = 3, min.features = 200)
+pbmc6 <- CreateSeuratObject(counts = pbmc.data6, project = "wt", min.cells = 3, min.features = 200)
+pbmc7 <- CreateSeuratObject(counts = pbmc.data7, project = "wt", min.cells = 3, min.features = 200)
+pbmc8 <- CreateSeuratObject(counts = pbmc.data8, project = "wt", min.cells = 3, min.features = 200)
+pbmc9 <- CreateSeuratObject(counts = pbmc.data9, project = "wt", min.cells = 3, min.features = 200)
+pbmc10 <- CreateSeuratObject(counts = pbmc.data10, project = "wt", min.cells = 3, min.features = 200)
+pbmc11 <- CreateSeuratObject(counts = pbmc.data11, project = "wt", min.cells = 3, min.features = 200)
+pbmc12 <- CreateSeuratObject(counts = pbmc.data12, project = "wt", min.cells = 3, min.features = 200)
+pbmc13 <- CreateSeuratObject(counts = pbmc.data13, project = "wt", min.cells = 3, min.features = 200)
+pbmc14 <- CreateSeuratObject(counts = pbmc.data14, project = "wt", min.cells = 3, min.features = 200)
+pbmc15 <- CreateSeuratObject(counts = pbmc.data15, project = "wt", min.cells = 3, min.features = 200)
+pbmc16 <- CreateSeuratObject(counts = pbmc.data16, project = "wt", min.cells = 3, min.features = 200)
+
+
+
+# lista con todos los objetos Seurat y control de calidad
+
+casos.list <- list(pbmc1, pbmc2, pbmc3, pbmc4, pbmc5, pbmc6, pbmc7, pbmc8)
+
+casos.list <- lapply(casos.list, function(x) {
+  x[["percent.mt"]] <- PercentageFeatureSet(x, pattern = "^MT-")
+  x <- subset(x, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+  return(x)
+})
+
+controles.list <- list(pbmc9, pbmc10, pbmc11, pbmc12, pbmc13, pbmc14, pbmc15, pbmc16)
+
+controles.list <- lapply(controles.list, function(x) {
+  x[["percent.mt"]] <- PercentageFeatureSet(x, pattern = "^MT-")
+  x <- subset(x, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+  return(x)
+})
+
+
+# Normalización y búsqueda de características variables en cada objeto Seurat
+casos.list <- lapply(casos.list, function(x) {
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x)
+  return(x)
+})
+
+
+controles.list <- lapply(controles.list, function(x) {
+  x <- NormalizeData(x)
+  x <- FindVariableFeatures(x)
+  return(x)
+})
+
+##el objeto antes de la integración
+
+lapply(casos.list, function(x) dim(x))
+casos.list[[1]]
+#####An object of class Seurat 
+#14847 features across 2242 samples within 1 assay 
+#Active assay: RNA (14847 features, 2000 variable features)
+#2 layers present: counts, data
+
+#GetAssayData(casos.list, slot = "counts")
+
+lapply(controles.list, function(x) dim(x))
+controles.list[[1]]
+###An object of class Seurat 
+#14205 features across 1721 samples within 1 assay 
+#Active assay: RNA (14205 features, 2000 variable features)
+#2 layers present: counts, data
+
+
+casos.list[[1]]@assays$RNA
+
+#Assay (v5) data with 14847 features for 1985 cells
+#Top 10 variable features:
+#S100A9, S100A8, IGLC3, IGKC, LYZ, PTGDS, S100A12, LYPD2, GNLY, RP11-1143G9.4 
+#Layers:   counts, data  
+
+controles.list[[1]]@assays$RNA
+
+#Assay (v5) data with 14205 features for 930 cells
+#Top 10 variable features:
+#LYZ, S100A9, IGKC, FTL, S100A8, CD74, PTGDS, LST1, CST3, JCHAIN  
+#Layers:  counts, data 
+
+
+# Unir los objetos en uno solo para usar Harmony
+pbmc.anchors_casos <- FindIntegrationAnchors(object.list = casos.list, dims = 1:10)
+pbmc.integrated_casos <- IntegrateData(anchorset = pbmc.anchors_casos, dims = 1:10)  ##esto realiza ya correccion de batch
+?RunHarmony
+
+pbmc.anchors_controles <- FindIntegrationAnchors(object.list = controles.list, dims = 1:10)
+pbmc.integrated_controles <- IntegrateData(anchorset = pbmc.anchors_controles, dims = 1:10)  ##esto realiza ya correccion de batch
+
+
+##despues de la integracion
+
+pbmc.integrated_casos
+#An object of class Seurat 
+#19096 features across 15328 samples within 2 assays 
+#Active assay: integrated (2000 features, 2000 variable features)
+#1 layer present: data
+#1 other assay present: RNA
+GetAssayData(pbmc.integrated_casos, slot = "counts")
+
+
+pbmc.integrated_controles
+#An object of class Seurat 
+#19438 features across 13320 samples within 2 assays 
+#Active assay: integrated (2000 features, 2000 variable features)
+#1 layer present: data
+#1 other assay present: RNA
+
+
+#pbmc.integrated_casos@assays
+#pbmc.integrated_controles@assays
+#pbmc.integrated@assays$RNA
+#pbmc.integrated@assays$integrated
+
+#Guardar hasta acá
+#saveRDS(pbmc1, file = "pbmc.integrated_casos.rds")
+#saveRDS(pbmc1, file = "pbmc.integrated_controles.rds")
+
+################################################################################
+##Cargar datos
+
+
+#ReadRDS(pbmc.integrated_controles, file = "pbmc.integrated_casos.rds")
+#ReadRDS(pbmc.integrated_casos, file = "pbmc.integrated_controles.rds")
+
+# Usar el assay integrado
+DefaultAssay(pbmc.integrated_casos) <- "integrated"
+DefaultAssay(pbmc.integrated_controles) <- "integrated"
+
+##############casos###############
+# Scale datos
+pbmc.integrated_casos <- ScaleData(pbmc.integrated_casos, verbose = FALSE)
+pbmc.integrated_casos <- RunPCA(pbmc.integrated_casos, npcs = 20, verbose = FALSE)
+colnames(pbmc.integrated_casos@meta.data)
+
+#pbmc.integrated <- RunHarmony(pbmc.integrated, group.by.vars = "VPH_status", dims.use = 1:10)
+##no usae vph_status pq no es un error tecnico, no hay una variable batch
+
+# clustering
+#pbmc.integrated <- RunUMAP(pbmc.integrated, reduction = "harmony", dims = 1:10)
+#pbmc.integrated <- FindNeighbors(pbmc.integrated, reduction = "harmony", dims = 1:10)
+#pbmc.integrated <- FindClusters(pbmc.integrated, resolution = 0.5)
+
+
+pbmc.integrated_casos <- RunUMAP(pbmc.integrated_casos, reduction = "pca", dims = 1:10)
+pbmc.integrated_casos <- FindNeighbors(pbmc.integrated_casos, reduction = "pca", dims = 1:10)
+
+## clustering
+pbmc.integrated_casos <- FindClusters(pbmc.integrated_casos, resolution = 0.5)
+summary(Idents(pbmc.integrated_casos))
+
+# Visualización
+
+ElbowPlot(pbmc.integrated_casos)
+
+DimPlot(pbmc.integrated_casos, reduction = "pca")
+DimPlot(pbmc.integrated_casos, reduction = "umap")
+
+####################anotacion##########################
+
+library(SingleR)
+library(celldex)
+
+###utilizando monaco de referencia
+# Obtener la matriz log-normalizada
+expr_matrix_casos <- GetAssayData(pbmc.integrated_casos, slot = "data")
+
+#cargar el conjunto de datos de referencia
+monaco <- celldex::MonacoImmuneData()
+
+singleR_results2 <- SingleR(test = expr_matrix_casos,
+                            ref = monaco,
+                            labels = monaco$label.main)
+
+
+pbmc.integrated_casos$SingleR_labels2 <- singleR_results2$labels
+table(pbmc.integrated_casos$SingleR_labels2)
+DimPlot(pbmc.integrated_casos, group.by = "SingleR_labels2", label = TRUE, repel = TRUE) +
+  ggtitle("Anotación con monaco-Casos")
+
+##############controles##########
+# Scale datos
+pbmc.integrated_controles <- ScaleData(pbmc.integrated_controles, verbose = FALSE)
+pbmc.integrated_controles <- RunPCA(pbmc.integrated_controles, npcs = 20, verbose = FALSE)
+colnames(pbmc.integrated_controles@meta.data)
+
+#pbmc.integrated <- RunHarmony(pbmc.integrated, group.by.vars = "VPH_status", dims.use = 1:10)
+##no usae vph_status pq no es un error tecnico, no hay una variable batch
+
+# clustering
+#pbmc.integrated <- RunUMAP(pbmc.integrated, reduction = "harmony", dims = 1:10)
+#pbmc.integrated <- FindNeighbors(pbmc.integrated, reduction = "harmony", dims = 1:10)
+#pbmc.integrated <- FindClusters(pbmc.integrated, resolution = 0.5)
+
+
+pbmc.integrated_controles <- RunUMAP(pbmc.integrated_controles, reduction = "pca", dims = 1:10)
+pbmc.integrated_controles <- FindNeighbors(pbmc.integrated_controles, reduction = "pca", dims = 1:10)
+
+## clustering
+pbmc.integrated_controles <- FindClusters(pbmc.integrated_controles, resolution = 0.5)
+summary(Idents(pbmc.integrated_controles))
+
+# Visualización
+
+ElbowPlot(pbmc.integrated_controles)
+
+DimPlot(pbmc.integrated_controles, reduction = "pca")
+DimPlot(pbmc.integrated_controles, reduction = "umap")
+
+
+########################anotacion##############
+
+library(SingleR)
+library(celldex)
+
+#########utilizando de referencia hpca
+# Obtener la matriz log-normalizada
+expr_matrix_controles <- GetAssayData(pbmc.integrated_controles, slot = "data")
+
+#cargar el conjunto de datos de referencia
+monaco <- celldex::MonacoImmuneData()
+
+singleR_results_controles2 <- SingleR(test = expr_matrix_controles,
+                                      ref = monaco,
+                                      labels = monaco$label.main)
+
+
+pbmc.integrated_controles$SingleR_labels_controles2 <- singleR_results_controles2$labels
+table(pbmc.integrated_controles$SingleR_labels_controles2)
+DimPlot(pbmc.integrated_controles, group.by = "SingleR_labels_controles2", label = TRUE, repel = TRUE) +
+  ggtitle("Anotación con monaco-Controles")
+
+
+################################################################################
+Anotacion <- data.frame(
+  tipo_celular = c("B cells", "CD4+ T cells", "CD8+ T cells", "Dendritic cells", 
+                   "Monocytes", "NK cells", "Progenitors", "T cells"),
+  caso = c(918, 4227, 1359, 84, 1901, 2302, 2, 1175),
+  control = c(537, 3879, 864, 88, 1692, 1452, 1679, 6, 1437)
+)
+Anotacion$porc_caso <- Anotacion$caso / sum(Anotacion$caso) * 100
+Anotacion$porc_control <- Anotacion$control / sum(Anotacion$control) * 100
+#write.csv(Anotacion, "Anotacion.csv")
+
+
+Anotacion <- Anotacion %>%
+  mutate(
+    total_caso = sum(caso),
+    total_control = sum(control),
+    porc_caso = caso / total_caso * 100,
+    porc_control = control / total_control * 100
+  ) %>%
+  select(-total_caso, -total_control)
+
+Anotacion_long <- Anotacion %>%
+  pivot_longer(cols = c(porc_caso, porc_control),
+               names_to = "grupo",
+               values_to = "porcentaje") %>%
+  mutate(grupo = recode(grupo, porc_caso = "Caso", porc_control = "Control"))
+
+ggplot(Anotacion_long, aes(x = reorder(tipo_celular, -porcentaje), y = porcentaje, fill = grupo)) +
+  geom_bar(stat = "identity", position = position_dodge(width = 0.8)) +
+  labs(
+    title = "Proporción de tipos celulares en Casos vs Controles",
+    x = "Tipo celular",
+    y = "Porcentaje (%)",
+    fill = "Grupo"
+  ) +
+  coord_flip() +
+  theme_minimal()
+
+Anotacion_diff <- Anotacion %>%
+  mutate(
+    total_caso = sum(caso),
+    total_control = sum(control),
+    porc_caso = caso / total_caso * 100,
+    porc_control = control / total_control * 100,
+    diferencia = porc_caso - porc_control
+  )
+
+ggplot(Anotacion_diff, aes(x = reorder(tipo_celular, diferencia), y = diferencia, fill = diferencia > 0)) +
+  geom_bar(stat = "identity") +
+  coord_flip() +
+  scale_fill_manual(values = c("TRUE" = "#D95F02", "FALSE" = "#1B9E77"), guide = FALSE) +
+  labs(title = "Diferencia de porcentaje (caso - control) por tipo celular",
+       x = "Tipo celular",
+       y = "Diferencia en porcentaje (%)") +
+  theme_minimal()
+
+########################################diferencia de expresion cel B ################
+# Casos
+B_cells_casos <- subset(pbmc.integrated_casos, subset = SingleR_labels2 == "B cells")
+
+# Controles
+B_cells_controles <- subset(pbmc.integrated_controles, subset = SingleR_labels_controles2 == "B cells")
+
+
+B_cells_casos$grupo <- "caso"
+B_cells_controles$grupo <- "control"
+
+B_cells_merged <- merge(B_cells_casos, y = B_cells_controles)
+B_cells_merged <- NormalizeData(B_cells_merged)
+B_cells_merged <- FindVariableFeatures(B_cells_merged, nfeatures = 3000)
+B_cells_merged <- ScaleData(B_cells_merged)
+
+B_cells_merged <- JoinLayers(B_cells_merged)
+
+markers_b <- FindMarkers(B_cells_merged,
+                         ident.1 = "caso",
+                         ident.2 = "control",
+                         group.by = "grupo",
+                         logfc.threshold = 0.25,
+                         min.pct = 0.001)
+head(markers_b)
+dim(markers_b)
+
+sig_genes <- markers_b[markers_b$p_val_adj < 0.05, ]
+dim(sig_genes) 
+head(sig_genes)
+#write.csv(sig_genes, file = "DEG_B_cells_casos_vs_controles.csv", row.names = TRUE)
+
+
+library(ggplot2)
+
+# Añadir columna de significancia para colorear
+markers_b$significant <- markers_b$p_val_adj < 0.05 & abs(markers_b$avg_log2FC) > 0.25
+
+ggplot(markers_b, aes(x = avg_log2FC, y = -log10(p_val_adj), color = significant)) +
+  geom_point(alpha = 0.7) +
+  scale_color_manual(values = c("grey", "red")) +
+  theme_minimal() +
+  labs(title = "Volcano plot - B cells (caso vs control)",
+       x = "Log2 Fold Change",
+       y = "-log10 adjusted p-value")
+
+genes_de_interes <- head(rownames(sig_genes), 10)  # o una lista personalizada
+
+DotPlot(B_cells_merged, features = genes_de_interes, group.by = "grupo") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+top30_genes <- head(rownames(sig_genes[order(sig_genes$p_val_adj), ]), 30)
+
+DoHeatmap(B_cells_merged, features = top30_genes, group.by = "grupo") +
+  theme(axis.text.y = element_text(size = 6))
+
+################## NK #########################################
+
+# Casos
+NK_cells_casos <- subset(pbmc.integrated_casos, subset = SingleR_labels2 == "NK cells")
+
+# Controles
+NK_cells_controles <- subset(pbmc.integrated_controles, subset = SingleR_labels_controles2 == "NK cells")
+
+
+NK_cells_casos$grupo <- "caso"
+NK_cells_controles$grupo <- "control"
+
+NK_cells_merged <- merge(NK_cells_casos, y = NK_cells_controles)
+DefaultAssay(NK_cells_merged) <- "RNA"
+NK_cells_merged <- NormalizeData(NK_cells_merged)
+NK_cells_merged <- ScaleData(NK_cells_merged)
+NK_cells_merged <- FindVariableFeatures(NK_cells_merged, nfeatures = 2000)
+
+
+NK_cells_merged <- JoinLayers(NK_cells_merged)
+
+markers_NK <- FindMarkers(NK_cells_merged,
+                         ident.1 = "caso",
+                         ident.2 = "control",
+                         group.by = "grupo",
+                         logfc.threshold = 0.25,
+                         min.pct = 0.001)
+head(markers_NK)
+dim(markers_NK)
+
+NK_genes <- markers_NK[markers_NK$p_val_adj < 0.05, ]
+dim(NK_genes) 
+head(NK_genes)
+write.csv(NK_genes, file = "DEG_NK_cells_casos_vs_controles.csv", row.names = TRUE)
+
+
+################## CD8 #########################################
+
+# Casos
+CD8_cells_casos <- subset(pbmc.integrated_casos, subset = SingleR_labels2 == "CD8+ T cells")
+
+# Controles
+CD8_cells_controles <- subset(pbmc.integrated_controles, subset = SingleR_labels_controles2 == "CD8+ T cells")
+
+
+CD8_cells_casos$grupo <- "caso"
+CD8_cells_controles$grupo <- "control"
+
+CD8_cells_merged <- merge(CD8_cells_casos, y = CD8_cells_controles)
+DefaultAssay(CD8_cells_merged) <- "RNA"
+CD8_cells_merged <- NormalizeData(CD8_cells_merged)
+CD8_cells_merged <- ScaleData(CD8_cells_merged)
+CD8_cells_merged <- FindVariableFeatures(CD8_cells_merged, nfeatures = 2000)
+
+
+CD8_cells_merged <- JoinLayers(CD8_cells_merged)
+
+markers_CD8 <- FindMarkers(CD8_cells_merged,
+                          ident.1 = "caso",
+                          ident.2 = "control",
+                          group.by = "grupo",
+                          logfc.threshold = 0.25,
+                          min.pct = 0.001)
+head(markers_CD8)
+dim(markers_CD8)
+
+NK_genes <- markers_NK[markers_NK$p_val_adj < 0.05, ]
+dim(NK_genes) 
+head(NK_genes)
+write.csv(NK_genes, file = "DEG_NK_cells_casos_vs_controles.csv", row.names = TRUE)
+

@@ -1,0 +1,448 @@
+---
+title: "Til_casosycontroles"
+output: html_document
+---
+
+library(dplyr)
+install.packages("seurat")  # Instala la versión correcta
+library(Seurat)  # Ahora carga el paquete Seurat
+library(tidyverse)
+library(pheatmap)
+library(Seurat)
+library(patchwork)
+library(celldex)
+library(SingleR)
+library(ggplot2)
+library(harmony)
+
+###cargar un solo set de datos
+## Casos (Del 146 al 160)
+Til.data1 <- Read10X(data.dir = "Caso_147/")
+Til.data2 <- Read10X(data.dir = "Caso_149/")
+Til.data3 <- Read10X(data.dir = "Caso_151/")
+Til.data4 <- Read10X(data.dir = "Caso_153/")
+Til.data5 <- Read10X(data.dir = "Caso_155/")
+Til.data6 <- Read10X(data.dir = "Caso_157/")
+Til.data7 <- Read10X(data.dir = "Caso_159/")
+Til.data8 <- Read10X(data.dir = "Caso_161/")
+## Control (Del 110 al 124)
+Til.data9 <- Read10X(data.dir = "Control_111/")
+Til.data10 <- Read10X(data.dir = "Control_113/")
+Til.data11 <- Read10X(data.dir = "Control_115/")
+Til.data12 <- Read10X(data.dir = "Control_117/")
+Til.data13 <- Read10X(data.dir = "Control_119/")
+Til.data14 <- Read10X(data.dir = "Control_121/")
+Til.data15 <- Read10X(data.dir = "Control_123/")
+Til.data16 <- Read10X(data.dir = "Control_125/")
+
+Til1 <- CreateSeuratObject(counts = Til.data1, project = "wt", min.cells = 3, min.features = 200)
+Til2 <- CreateSeuratObject(counts = Til.data2, project = "wt", min.cells = 3, min.features = 200)
+Til3 <- CreateSeuratObject(counts = Til.data3, project = "wt", min.cells = 3, min.features = 200)
+Til4 <- CreateSeuratObject(counts = Til.data4, project = "wt", min.cells = 3, min.features = 200)
+Til5 <- CreateSeuratObject(counts = Til.data5, project = "wt", min.cells = 3, min.features = 200)
+Til6 <- CreateSeuratObject(counts = Til.data6, project = "wt", min.cells = 3, min.features = 200)
+Til7 <- CreateSeuratObject(counts = Til.data7, project = "wt", min.cells = 3, min.features = 200)
+Til8 <- CreateSeuratObject(counts = Til.data8, project = "wt", min.cells = 3, min.features = 200)
+Til9 <- CreateSeuratObject(counts = Til.data9, project = "wt", min.cells = 3, min.features = 200)
+Til10 <- CreateSeuratObject(counts = Til.data10, project = "wt", min.cells = 3, min.features = 200)
+Til11 <- CreateSeuratObject(counts = Til.data11, project = "wt", min.cells = 3, min.features = 200)
+Til12 <- CreateSeuratObject(counts = Til.data12, project = "wt", min.cells = 3, min.features = 200)
+Til13 <- CreateSeuratObject(counts = Til.data13, project = "wt", min.cells = 3, min.features = 200)
+Til14 <- CreateSeuratObject(counts = Til.data14, project = "wt", min.cells = 3, min.features = 200)
+Til15 <- CreateSeuratObject(counts = Til.data15, project = "wt", min.cells = 3, min.features = 200)
+Til16 <- CreateSeuratObject(counts = Til.data16, project = "wt", min.cells = 3, min.features = 200)
+
+##########################CASOS################################################
+###############################################################################
+###control de calidad para todos 
+Til1[["percent.mt"]] <- PercentageFeatureSet(Til1, pattern = "^MT-")
+Til1 <- subset(Til1, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til2[["percent.mt"]] <- PercentageFeatureSet(Til2, pattern = "^MT-")
+Til2 <- subset(Til2, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til3[["percent.mt"]] <- PercentageFeatureSet(Til3, pattern = "^MT-")
+Til3 <- subset(Til3, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til4[["percent.mt"]] <- PercentageFeatureSet(Til4, pattern = "^MT-")
+Til4 <- subset(Til4, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til5[["percent.mt"]] <- PercentageFeatureSet(Til5, pattern = "^MT-")
+Til5 <- subset(Til5, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til6[["percent.mt"]] <- PercentageFeatureSet(Til6, pattern = "^MT-")
+Til6 <- subset(Til6, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til7[["percent.mt"]] <- PercentageFeatureSet(Til7, pattern = "^MT-")
+Til7 <- subset(Til7, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til8[["percent.mt"]] <- PercentageFeatureSet(Til8, pattern = "^MT-")
+Til8 <- subset(Til8, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+###Normalizacion para todos
+
+Til1 <- NormalizeData(Til1, normalization.method = "LogNormalize", scale.factor = 10000)
+Til1 <- FindVariableFeatures(Til1, selection.method = "vst", nfeatures = 2000)
+
+Til2 <- NormalizeData(Til2, normalization.method = "LogNormalize", scale.factor = 10000)
+Til2 <- FindVariableFeatures(Til2, selection.method = "vst", nfeatures = 2000)
+
+Til3 <- NormalizeData(Til3, normalization.method = "LogNormalize", scale.factor = 10000)
+Til3 <- FindVariableFeatures(Til3, selection.method = "vst", nfeatures = 2000)
+
+Til4 <- NormalizeData(Til4, normalization.method = "LogNormalize", scale.factor = 10000)
+Til4 <- FindVariableFeatures(Til4, selection.method = "vst", nfeatures = 2000)
+
+Til5 <- NormalizeData(Til5, normalization.method = "LogNormalize", scale.factor = 10000)
+Til5 <- FindVariableFeatures(Til5, selection.method = "vst", nfeatures = 2000)
+
+Til6 <- NormalizeData(Til6, normalization.method = "LogNormalize", scale.factor = 10000)
+Til6 <- FindVariableFeatures(Til6, selection.method = "vst", nfeatures = 2000)
+
+Til7 <- NormalizeData(Til7, normalization.method = "LogNormalize", scale.factor = 10000)
+Til7 <- FindVariableFeatures(Til7, selection.method = "vst", nfeatures = 2000)
+
+Til8 <- NormalizeData(Til8, normalization.method = "LogNormalize", scale.factor = 10000)
+Til8 <- FindVariableFeatures(Til8, selection.method = "vst", nfeatures = 2000)
+
+#########cluster###############
+
+Til1 <- ScaleData(Til1)
+Til1 <- RunPCA(Til1, features = VariableFeatures(object = Til1))
+Til1 <- RunUMAP(Til1, dims = 1:10)
+Til1 <- FindNeighbors(Til1, dims = 1:10)
+Til1 <- FindClusters(Til1, resolution = 0.5)
+
+head(Idents(Til1), 5)
+summary(Idents(Til1))
+
+Til2 <- ScaleData(Til2)
+Til2 <- RunPCA(Til2, features = VariableFeatures(object = Til2))
+Til2 <- RunUMAP(Til2, dims = 1:10)
+Til2 <- FindNeighbors(Til2, dims = 1:10)
+Til2 <- FindClusters(Til2, resolution = 0.5)
+
+Til3 <- ScaleData(Til3)
+Til3 <- RunPCA(Til3, features = VariableFeatures(object = Til3))
+Til3 <- RunUMAP(Til3, dims = 1:10)
+Til3 <- FindNeighbors(Til3, dims = 1:10)
+Til3 <- FindClusters(Til3, resolution = 0.5)
+
+Til4 <- ScaleData(Til4)
+Til4 <- RunPCA(Til4, features = VariableFeatures(object = Til4))
+Til4 <- RunUMAP(Til4, dims = 1:10)
+Til4 <- FindNeighbors(Til4, dims = 1:10)
+Til4 <- FindClusters(Til4, resolution = 0.5)
+
+Til5 <- ScaleData(Til5)
+Til5 <- RunPCA(Til5, features = VariableFeatures(object = Til5))
+Til5 <- RunUMAP(Til5, dims = 1:10)
+Til5 <- FindNeighbors(Til5, dims = 1:10)
+Til5 <- FindClusters(Til5, resolution = 0.5)
+
+Til6 <- ScaleData(Til6)
+Til6 <- RunPCA(Til6, features = VariableFeatures(object = Til6))
+Til6 <- RunUMAP(Til6, dims = 1:10)
+Til6 <- FindNeighbors(Til6, dims = 1:10)
+Til6 <- FindClusters(Til6, resolution = 0.5)
+
+Til7 <- ScaleData(Til7)
+Til7 <- RunPCA(Til7, features = VariableFeatures(object = Til7))
+Til7 <- RunUMAP(Til7, dims = 1:10)
+Til7 <- FindNeighbors(Til7, dims = 1:10)
+Til7 <- FindClusters(Til7, resolution = 0.5)
+
+Til8 <- ScaleData(Til8)
+Til8 <- RunPCA(Til8, features = VariableFeatures(object = Til8))
+Til8 <- RunUMAP(Til8, dims = 1:10)
+Til8 <- FindNeighbors(Til8, dims = 1:10)
+Til8 <- FindClusters(Til8, resolution = 0.5)
+
+#################anotacion casos ###########################
+library(SingleR)
+library(celldex)
+
+# Obtener la matriz de expresión
+Til_counts1 <- GetAssayData(Til1, slot = "counts")
+Til_counts2 <- GetAssayData(Til2, slot = "counts")
+Til_counts3 <- GetAssayData(Til3, slot = "counts")
+Til_counts4 <- GetAssayData(Til4, slot = "counts")
+Til_counts5 <- GetAssayData(Til5, slot = "counts")
+Til_counts6 <- GetAssayData(Til6, slot = "counts")
+Til_counts7 <- GetAssayData(Til7, slot = "counts")
+Til_counts8 <- GetAssayData(Til8, slot = "counts")
+
+#cargar el conjunto de datos de referencia
+monaco <- celldex::MonacoImmuneData()
+
+singleR_results1 <- SingleR(test = Til_counts1, ref = monaco, labels = monaco$label.main)
+Til1[["SingleR.labels"]] <- singleR_results1$labels  
+table(Til1$SingleR.labels)
+DimPlot(Til1, group.by = "SingleR.labels")   
+
+singleR_results2 <- SingleR(test = Til_counts2, ref = monaco, labels = monaco$label.main)
+Til2[["SingleR.labels"]] <- singleR_results2$labels  
+table(Til2$SingleR.labels)
+DimPlot(Til2, group.by = "SingleR.labels") 
+
+singleR_results3 <- SingleR(test = Til_counts3, ref = monaco, labels = monaco$label.main)
+Til3[["SingleR.labels"]] <- singleR_results3$labels  
+table(Til3$SingleR.labels)
+DimPlot(Til3, group.by = "SingleR.labels") 
+
+singleR_results4 <- SingleR(test = Til_counts4, ref = monaco, labels = monaco$label.main)
+Til4[["SingleR.labels"]] <- singleR_results4$labels  
+table(Til4$SingleR.labels)
+DimPlot(Til4, group.by = "SingleR.labels") 
+
+singleR_results5 <- SingleR(test = Til_counts5, ref = monaco, labels = monaco$label.main)
+Til5[["SingleR.labels"]] <- singleR_results5$labels  
+table(Til5$SingleR.labels)
+DimPlot(Til5, group.by = "SingleR.labels") 
+
+singleR_results6 <- SingleR(test = Til_counts6, ref = monaco, labels = monaco$label.main)
+Til6[["SingleR.labels"]] <- singleR_results6$labels  
+table(Til6$SingleR.labels)
+DimPlot(Til6, group.by = "SingleR.labels") 
+
+singleR_results7 <- SingleR(test = Til_counts7, ref = monaco, labels = monaco$label.main)
+Til7[["SingleR.labels"]] <- singleR_results7$labels  
+table(Til7$SingleR.labels)
+DimPlot(Til7, group.by = "SingleR.labels") 
+
+singleR_results8 <- SingleR(test = Til_counts8, ref = monaco, labels = monaco$label.main)
+Til8[["SingleR.labels"]] <- singleR_results8$labels  
+table(Til8$SingleR.labels)
+DimPlot(Til8, group.by = "SingleR.labels") 
+
+
+##########################CONTROLES################################################
+###############################################################################
+###control de calidad para todos  
+
+Til9[["percent.mt"]] <- PercentageFeatureSet(Til9, pattern = "^MT-")
+Til9 <- subset(Til9, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til10[["percent.mt"]] <- PercentageFeatureSet(Til10, pattern = "^MT-")
+Til10 <- subset(Til10, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til11[["percent.mt"]] <- PercentageFeatureSet(Til11, pattern = "^MT-")
+Til11 <- subset(Til11, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til12[["percent.mt"]] <- PercentageFeatureSet(Til12, pattern = "^MT-")
+Til12 <- subset(Til12, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til13[["percent.mt"]] <- PercentageFeatureSet(Til13, pattern = "^MT-")
+Til13 <- subset(Til13, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til14[["percent.mt"]] <- PercentageFeatureSet(Til14, pattern = "^MT-")
+Til14 <- subset(Til14, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til15[["percent.mt"]] <- PercentageFeatureSet(Til15, pattern = "^MT-")
+Til15 <- subset(Til15, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+Til16[["percent.mt"]] <- PercentageFeatureSet(Til16, pattern = "^MT-")
+Til16 <- subset(Til16, subset = nFeature_RNA > 200 & nFeature_RNA < 2000 & percent.mt < 5)
+
+###Normalizacion para todos
+
+Til9 <- NormalizeData(Til9, normalization.method = "LogNormalize", scale.factor = 10000)
+Til9 <- FindVariableFeatures(Til9, selection.method = "vst", nfeatures = 2000)
+
+Til10 <- NormalizeData(Til10, normalization.method = "LogNormalize", scale.factor = 10000)
+Til10 <- FindVariableFeatures(Til10, selection.method = "vst", nfeatures = 2000)
+
+Til11 <- NormalizeData(Til11, normalization.method = "LogNormalize", scale.factor = 10000)
+Til11 <- FindVariableFeatures(Til11, selection.method = "vst", nfeatures = 2000)
+
+Til12 <- NormalizeData(Til12, normalization.method = "LogNormalize", scale.factor = 10000)
+Til12 <- FindVariableFeatures(Til12, selection.method = "vst", nfeatures = 2000)
+
+Til13 <- NormalizeData(Til13, normalization.method = "LogNormalize", scale.factor = 10000)
+Til13 <- FindVariableFeatures(Til13, selection.method = "vst", nfeatures = 2000)
+
+Til14 <- NormalizeData(Til14, normalization.method = "LogNormalize", scale.factor = 10000)
+Til14 <- FindVariableFeatures(Til14, selection.method = "vst", nfeatures = 2000)
+
+Til15 <- NormalizeData(Til15, normalization.method = "LogNormalize", scale.factor = 10000)
+Til15 <- FindVariableFeatures(Til15, selection.method = "vst", nfeatures = 2000)
+
+Til16 <- NormalizeData(Til16, normalization.method = "LogNormalize", scale.factor = 10000)
+Til16 <- FindVariableFeatures(Til16, selection.method = "vst", nfeatures = 2000)
+
+#########cluster###############
+
+Til9 <- ScaleData(Til9)
+Til9 <- RunPCA(Til9, features = VariableFeatures(object = Til9))
+Til9 <- RunUMAP(Til9, dims = 1:10)
+Til9 <- FindNeighbors(Til9, dims = 1:10)
+Til9 <- FindClusters(Til9, resolution = 0.5)
+
+head(Idents(Til9), 5)
+summary(Idents(Til9))
+
+Til10 <- ScaleData(Til10)
+Til10 <- RunPCA(Til10, features = VariableFeatures(object = Til10))
+Til10 <- RunUMAP(Til10, dims = 1:10)
+Til10 <- FindNeighbors(Til10, dims = 1:10)
+Til10 <- FindClusters(Til10, resolution = 0.5)
+
+Til11 <- ScaleData(Til11)
+Til11 <- RunPCA(Til11, features = VariableFeatures(object = Til11))
+Til11 <- RunUMAP(Til11, dims = 1:10)
+Til11 <- FindNeighbors(Til11, dims = 1:10)
+Til11 <- FindClusters(Til11, resolution = 0.5)
+
+Til12 <- ScaleData(Til12)
+Til12 <- RunPCA(Til12, features = VariableFeatures(object = Til12))
+Til12 <- RunUMAP(Til12, dims = 1:10)
+Til12 <- FindNeighbors(Til12, dims = 1:10)
+Til12 <- FindClusters(Til12, resolution = 0.5)
+
+Til13 <- ScaleData(Til13)
+Til13 <- RunPCA(Til13, features = VariableFeatures(object = Til13))
+Til13 <- RunUMAP(Til13, dims = 1:10)
+Til13 <- FindNeighbors(Til13, dims = 1:10)
+Til13 <- FindClusters(Til13, resolution = 0.5)
+
+Til14 <- ScaleData(Til14)
+Til14 <- RunPCA(Til14, features = VariableFeatures(object = Til14))
+Til14 <- RunUMAP(Til14, dims = 1:10)
+Til14 <- FindNeighbors(Til14, dims = 1:10)
+Til14 <- FindClusters(Til14, resolution = 0.5)
+
+Til15 <- ScaleData(Til15)
+Til15 <- RunPCA(Til15, features = VariableFeatures(object = Til15))
+Til15 <- RunUMAP(Til15, dims = 1:10)
+Til15 <- FindNeighbors(Til15, dims = 1:10)
+Til15 <- FindClusters(Til15, resolution = 0.5)
+
+Til16 <- ScaleData(Til16)
+Til16 <- RunPCA(Til16, features = VariableFeatures(object = Til16))
+Til16 <- RunUMAP(Til16, dims = 1:10)
+Til16 <- FindNeighbors(Til16, dims = 1:10)
+Til16 <- FindClusters(Til16, resolution = 0.5)
+
+#################anotacion controles ###########################
+library(SingleR)
+library(celldex)
+
+# Obtener la matriz de expresión
+Til_counts9  <- GetAssayData(Til9,  slot = "counts")
+Til_counts10 <- GetAssayData(Til10, slot = "counts")
+Til_counts11 <- GetAssayData(Til11, slot = "counts")
+Til_counts12 <- GetAssayData(Til12, slot = "counts")
+Til_counts13 <- GetAssayData(Til13, slot = "counts")
+Til_counts14 <- GetAssayData(Til14, slot = "counts")
+Til_counts15 <- GetAssayData(Til15, slot = "counts")
+Til_counts16 <- GetAssayData(Til16, slot = "counts")
+
+#cargar el conjunto de datos de referencia
+monaco <- celldex::MonacoImmuneData()
+
+singleR_results9 <- SingleR(test = Til_counts9, ref = monaco, labels = monaco$label.main)
+Til9[["SingleR.labels"]] <- singleR_results9$labels  
+table(Til9$SingleR.labels)
+DimPlot(Til9, group.by = "SingleR.labels")   
+
+singleR_results10 <- SingleR(test = Til_counts10, ref = monaco, labels = monaco$label.main)
+Til10[["SingleR.labels"]] <- singleR_results10$labels  
+table(Til10$SingleR.labels)
+DimPlot(Til10, group.by = "SingleR.labels") 
+
+singleR_results11 <- SingleR(test = Til_counts11, ref = monaco, labels = monaco$label.main)
+Til11[["SingleR.labels"]] <- singleR_results11$labels  
+table(Til11$SingleR.labels)
+DimPlot(Til11, group.by = "SingleR.labels") 
+
+singleR_results12 <- SingleR(test = Til_counts12, ref = monaco, labels = monaco$label.main)
+Til12[["SingleR.labels"]] <- singleR_results12$labels  
+table(Til12$SingleR.labels)
+DimPlot(Til12, group.by = "SingleR.labels") 
+
+singleR_results13 <- SingleR(test = Til_counts13, ref = monaco, labels = monaco$label.main)
+Til13[["SingleR.labels"]] <- singleR_results13$labels  
+table(Til13$SingleR.labels)
+DimPlot(Til13, group.by = "SingleR.labels") 
+
+singleR_results14 <- SingleR(test = Til_counts14, ref = monaco, labels = monaco$label.main)
+Til14[["SingleR.labels"]] <- singleR_results14$labels  
+table(Til14$SingleR.labels)
+DimPlot(Til14, group.by = "SingleR.labels") 
+
+singleR_results15 <- SingleR(test = Til_counts15, ref = monaco, labels = monaco$label.main)
+Til15[["SingleR.labels"]] <- singleR_results15$labels  
+table(Til15$SingleR.labels)
+DimPlot(Til15, group.by = "SingleR.labels") 
+
+singleR_results16 <- SingleR(test = Til_counts16, ref = monaco, labels = monaco$label.main)
+Til16[["SingleR.labels"]] <- singleR_results16$labels  
+table(Til16$SingleR.labels)
+DimPlot(Til16, group.by = "SingleR.labels") 
+
+
+
+##################################
+# Lista con tus objetos CONTROLES #########################
+
+Til_list <- list(Til9, Til10, Til11, Til12, Til13, Til14, Til15, Til16)
+
+# Nombres para las filas (muestras)
+sample_names <- paste0("Til", 9:16)
+
+# Crear lista vacía para guardar las tablas de frecuencias
+freq_tables <- list()
+
+for (i in seq_along(Til_list)) {
+  freq_tables[[i]] <- table(Til_list[[i]]$SingleR.labels)
+}
+
+# Sacar todos los nombres únicos de tipos celulares
+all_cell_types <- unique(unlist(lapply(freq_tables, names)))
+
+# Construir un data frame vacío para juntar todo, con filas para cada muestra y columnas para cada tipo celular
+df <- matrix(0, nrow = length(freq_tables), ncol = length(all_cell_types),
+             dimnames = list(sample_names, all_cell_types))
+
+# Rellenar la matriz con los valores de cada tabla, poniendo 0 donde no exista ese tipo celular
+for (i in seq_along(freq_tables)) {
+  tab <- freq_tables[[i]]
+  df[i, names(tab)] <- as.numeric(tab)
+}
+
+# Pasar a data frame para mejor manejo
+df <- as.data.frame(df)
+write.csv(df, file = "PoblacionesTil_controles.csv", row.names = TRUE)
+
+
+# Lista con tus objetosCASOS ###############################
+
+Til_list_casos <- list(Til1, Til2, Til3, Til4, Til5, Til6, Til7, Til8)
+
+# Nombres para las filas (muestras)
+sample_names_casos <- paste0("Til", 1:8)
+
+# Crear lista vacía para guardar las tablas de frecuencias
+freq_tables_casos <- list()
+
+for (i in seq_along(Til_list_casos)) {
+  freq_tables[[i]] <- table(Til_list_casos[[i]]$SingleR.labels)
+}
+
+# Sacar todos los nombres únicos de tipos celulares
+all_cell_types <- unique(unlist(lapply(freq_tables, names)))
+
+# Construir un data frame vacío para juntar todo, con filas para cada muestra y columnas para cada tipo celular
+df <- matrix(0, nrow = length(freq_tables), ncol = length(all_cell_types),
+             dimnames = list(sample_names, all_cell_types))
+
+# Rellenar la matriz con los valores de cada tabla, poniendo 0 donde no exista ese tipo celular
+for (i in seq_along(freq_tables)) {
+  tab <- freq_tables[[i]]
+  df[i, names(tab)] <- as.numeric(tab)
+}
+
+# Pasar a data frame para mejor manejo
+df <- as.data.frame(df)
+write.csv(df, file = "PoblacionesTil_casos.csv", row.names = TRUE)
+
