@@ -1,0 +1,291 @@
+---
+title: "Red_coexpression"
+output: html_document
+---
+
+## Red de coexpresión ######
+library(dplyr)
+library(openxlsx)
+library(infotheo)
+library(minet)
+library(writexl)
+library(ggplot2)
+## Union de las bases de datos ######
+Score <- read_excel("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Score_V3_AG.xlsx", 
+                          sheet = "Seleccionados")
+## LLamado de las bases de datos que contienen los DEGs
+E1_308 <- read_excel("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Base RNAseq1/E1_308_exl.xlsx")
+E1_927<- read_excel("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Base RNAseq1/E1_927_exl.xlsx")
+E1_536<- read_excel("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Base RNAseq1/E1_536_exl.xlsx")
+
+
+dat_f<-merge(Score[,c("Gen","Score")],E1_308,by="Gen",all.x=T)
+dat_f<-merge(dat_f,E1_927,by="Gen",all.x=T)
+dat_f<-merge(dat_f,E1_536,by="Gen",all.x=T)
+
+# Imputar NA por la mediana de cada fila
+df<-dat_f[,c(-1,-2)]
+medianas <- apply(df, 1, median, na.rm = TRUE)
+
+for (i in 1:nrow(df)) {
+  df[i, is.na(df[i, ])] <- medianas[i]
+}
+rownames(df)<-dat_f$Gen
+## Se va utilizar el dat frame df para la construcción de la red de coexpresión,
+## Este tiene 243 Genes (DEGs) y 86 variables que corresponden a los conteos 
+## de cada una de las bases de datos, además se imputaron los datos utilizando la mediana.
+
+### Red de coexpresion 
+S<-abs(cor(t(df),use =  "pairwise.complete.obs"))##cambie a E1
+dim(S)
+hist(S,xlim=c(0,1),col="lightblue",main="Histograma de S",ylab="Frecuencia",xlab="S")
+nombres_filas2 <- data.frame(Filas = rownames(S))
+#write_xlsx(nombres_filas2, "C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/DEGS_RedCo.xlsx")
+
+matplot(t(df), type="l",xlab="Muestras",ylab="Nivel de expresión",ylim=c(0,15),las=1)
+
+Ed=discretize(t(df), disc="globalequalwidth",nbins=ceiling(1+log(ncol(df)))) ##Quiza aqui hay error
+matplot(Ed, type="l",xlab="Muestras",ylab="Nivel de expresión discretizado",las=1, ylim=c(1,max(Ed)))
+#Calculando la información mutua
+IM=mutinformation(Ed,method= "shrink")
+#Transformación para calcular el CIM en el intervalo [0,1]
+S1<-sqrt(1-exp(-2*IM))
+S1[which(is.na(S1))]<-0
+hist(S1,xlim=c(0,1),col="lightblue",main="Histograma de CIM",ylab="Frecuencia",xlab="S")
+## Definición del umbral de similitud ### 
+library(igraph)
+#Número de genes
+n=nrow(S)
+C=matrix(nrow=n, ncol=100)
+K=matrix(nrow=n, ncol=100)
+ltaos=seq(0.01,0.99,by=0.01)
+for(tao in ltaos){
+  print(tao)
+  ##Matriz de adyacencia:
+  A=matrix(0,nrow=n,ncol=n)    
+  ##Completa la matriz de adyacencia usando la función de adyacencia:
+  for(i in 1:n){  
+    A[which(S[,i]>=tao),i]<-1
+    A[which(S[,i]<tao),i]<-0
+  }
+  ##Transforma la matriz A en un objeto igraph:
+  A=graph.adjacency(A,mode="undirected",diag=FALSE)
+  ##Calcula el Ci de los nodos:
+  Cv=transitivity(A,type="local")
+  ##Calcula el ki de los nodos:
+  Kv=degree(A,loops=FALSE)
+  ##Guarda Ci y ki en los vectores C y K respectivamente:
+  K[,round(tao*100,0)]<-Kv
+  C[,round(tao*100,0)]<-Cv
+}
+Cr=Co=rep(0,100)
+for(i in round(ltaos*100,0)){  
+  gn<-which(K[,i]>=1)#Posición de los genes conectados en la red
+  kn=length(gn)#Número de nodos en la red
+  k1=1/kn*sum(K[gn,i])#Variable en ecuación 3 (Ver Elo et.al. 2007)
+  k2=1/kn*sum(K[gn,i]^2)#Variable en ecuación 3 (Ver Elo et.al. 2007)
+  Co[i]=((k2-k1)^2)/(kn*k1^3) #Coeficiente de agrupamiento esperado para una red aleatoria
+  if(kn==0){Co[i]=0}#Si no hay nodos conectados: Co=0
+  gn<-which(K[,i]>1)#Posición de los genes con k1>1.
+  kn=length(gn)#N?mero de genes con más de una arista en la red
+  Cr[i]=1/kn*sum(C[gn,i])#Coeficiente de agrupamiento observado en la red.
+  if(kn==0){Cr[i]=0}#Si no hay nodos conectados: Cr=0
+}
+#Grafica la curva |Cr-Co|:
+plot(ltaos,abs(Cr-Co)[ltaos*100],t="l",xlab="tao",ylab="|C-Co|",col="red",lwd=2,
+     main="Gráfica de la curva |cr-co|")
+## Suavizando un poco la figura anterior
+dif=runmed(abs(Cr-Co),k=3,endrule="constant")[1:100]  
+plot(ltaos,dif[ltaos*100],t="l",xlab="tao",ylab="|C-Co|",col="red",lwd=2,main="Gráfica de la curva |cr-co|")
+abline(v=0.79)
+##Fijamos el valor de tao
+tao=0.79 
+
+## Cálculo de la matriz de adyacencia y visualización de la red.
+#Define matriz de adyacencia:
+A=matrix(0,nrow=n,ncol=n)    
+
+#Completa la matriz de adyacencia usando la función de adyacencia:
+for(i in 1:n){  
+  A[which(S[,i]>=tao),i]<-1
+  A[which(S[,i]<tao),i]<-0
+}
+#Agrega nombres a filas y columnas
+colnames(A)<-rownames(A)<-rownames(df)#vector genenames
+#rownames(E)
+#Convierte la diagonal en ceros (red no dirigida):
+diag(A)<-0
+#Elimina nodos no conectados:
+A=A[which(K[,round(tao*100,0)]>0),which(K[,round(tao*100,0)]>0)]
+class(A)
+dim(A) #Luego de elegir un valot tao=0.85 se obtienen 172 DEGs para la red de coexpresión.
+A2<-cbind(A,genes_table_3$`hsa-miR-363-5p`,genes_table_3$`hsa-miR-323b-3p`,
+          genes_table_3$`hsa-miR-526a-5p`,genes_table_3$`hsa-miR-499a-5p`,
+          genes_table_3$`hsa-miR-612`,genes_table_3$`hsa-miR-208b-3p`)
+A2<-rbind(A2,c(genes_table_3$`hsa-miR-363-5p`,rep(0,6)),c(genes_table_3$`hsa-miR-323b-3p`,rep(0,6)),
+          c(genes_table_3$`hsa-miR-526a-5p`,rep(0,6)),c(genes_table_3$`hsa-miR-499a-5p`,rep(0,6)),
+          c(genes_table_3$`hsa-miR-612`,rep(0,6)),c(genes_table_3$`hsa-miR-208b-3p`,rep(0,6)))
+diag(A2)<-0
+colnames(A2)<-rownames(A2)<-c(rownames(A),"Mirna1","Mirna2","Mirna3","Mirna4","Mirna5","Mirna6")
+#Crea objeto igraph:
+A_final=graph.adjacency(A,mode="undirected",add.colnames=NULL,diag=FALSE)
+A_final_2=graph.adjacency(A2,mode="undirected",add.colnames=NULL,diag=FALSE)
+class(A_final)
+class(A_final_2)
+plot(A_final)
+plot(A_final_2)
+plot.igraph(A_final,layout=layout_with_kk,vertex.color = 'lightblue',vertex.size=3,edge.color="darkgreen",vertex.label.font=1,vertex.label.cex=0.5 )
+plot.igraph(A_final_2,layout=layout_with_kk,vertex.color = 'lightblue',vertex.size=3,edge.color="darkgreen",vertex.label.font=1,vertex.label.cex=0.5 )
+##Guardadno los datos para usar Cytoscape
+write.graph(A_final, file = "C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/edgesRNAseq_tesisL.gml", format = "gml")
+write.graph(A_final_2, file = "C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/edgesRNAseq_tesisL_miRNA.gml", format = "gml")
+
+
+#BiocManager::install("RCy3")
+library(RCy3)
+library(igraph)
+cytoscapePing()
+createNetworkFromIgraph(A_final_2,"Tesis Luisa V1 AG")
+## Utilizadno Cytoscape
+##################Ver Cytoscape#############################
+## Obteniendo información sobre la red de coexpresión
+##Numero de nodos:
+length(V(A_final_2))##Se tienen 172 nodos 
+##Aristas:
+E(A_final_2)##Se obtienen los nombres de las aristas 
+transitivity(A_final_2, type="global") ## El valor que se obtiene es 0.6936543
+# Calcula el diámetro de la red (la distancia geodésica más larga) que es 15
+diameter(A_final_2)
+# Calcula y muestra el grado de los nodos
+deg <- degree(A_final_2, mode="all")
+barplot(table(deg), las=2)
+## Se hace el grafico pero con bolitas más grandes si se tiene grado más grande.
+plot(A_final_2, vertex.size=deg)
+plot.igraph(A_final_2,layout=layout_with_kk,vertex.color = 'lightblue',vertex.size=deg,edge.color="darkgreen",vertex.label.font=1,vertex.label.cex=0.3 )
+
+##Creando la tabla finalmente #########
+centr_betw_result <- centr_betw(A_final_2, directed = FALSE, normalized = TRUE)
+closeness_result <- closeness(A_final_2, mode = "all", weights = NA)
+centr_clo_result <- centr_clo(A_final_2, mode = "all", normalized = TRUE)
+degree_result <- degree(A_final_2, mode = "all")
+
+write.table(centr_betw_result$res,file="C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Red menos de 2 conexiones/Cent_Intermediación.txt")
+write.table(centr_clo_result$res,file="C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Red menos de 2 conexiones/Cent_cercanía.txt")
+write.table(degree_result,file="C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Red menos de 2 conexiones/Grado.txt")
+
+#Crear una tabla con los nombres de los genes y las medidas topológicas
+genes_table <- data.frame(
+  Genes = V(A_final_2)$name,
+  Cent_Intermediación = centr_betw_result$res,
+  Cent_cercanía  = centr_clo_result$res,
+  Grado = degree_result,
+  Coef_cluster=transitivity(A_final_2, type="local")) 
+
+
+View(genes_table)
+#res0_rnaseq_prueba<-as.data.frame(res0_rnaseq)
+#res0_rnaseq_prueba$Genes<-row.names(res0_rnaseq_prueba)
+#result <- merge(genes_table, res0_rnaseq_prueba[, c("Genes", "log2FoldChange")], by = "Genes", all.x = TRUE)
+write_xlsx(genes_table, "C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Tabla_topo_TesisL_miRNA.xlsx")
+
+#### Gráficos descriptivos ######
+genes_table_2 <- read_excel("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Tabla_topo_TesisL_V3_AG.xlsx")## Genes segudno filtro (Con medias topologicas)
+genes_table_2 <- as.data.frame(genes_table_2[,1:5])
+Mediana  <- read.delim2("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Mediana.txt")
+row.names(genes_table_2) <- genes_table_2$Genes
+row.names(Mediana) <- Mediana$Gen
+
+## Boxplot por variable#####
+boxplot(genes_table_2[,2],main="Cent_intermediacion")
+boxplot(genes_table_2[,3],main="Cent_Cercania")
+boxplot(genes_table_2[,4],main="Grado")
+## no se pueden hacer en el mismo gráfico porque difieren en tamaño
+par(mfrow=c(1, 2)) 
+boxplot(Mediana$Mediana,main="FoldChange 1 (Primer prio)",ylim=c(-6,7),col="#528B8B")## Primera priorización
+boxplot(genes_table_2[,5],main="FoldChange 2 (Tabla topo) ",ylim=c(-6,7),col="#528B8B")## Segunda priorización
+## Primera priorización
+## diagrama de dispersión ######
+plot(x=c(1:length(genes_table_2$Genes)),genes_table_2[,2],main="Cent_intermediacion")
+plot(x=c(1:length(genes_table_2$Genes)),genes_table_2[,3],main="Cent_Cercania")
+plot(x=c(1:length(genes_table_2$Genes)),genes_table_2[,4],main="Grado")
+plot(x=c(1:length(genes_table_2$Genes)),genes_table_2[,5],main="Coef_cluster")
+plot(x=c(1:length(genes_table_2$Genes)),genes_table_2[,6],main="FoldChange")
+ ##### Correlograma #####
+corrplot(cor(genes_table_2[,-1]),order = 'AOE', addCoef.col = 'black', tl.pos = 'd',
+         cl.pos = 'n', col = COL2('BrBG'))
+corrplot.mixed(cor(genes_table_2[,-1]))## Creo que queda raro por los NA
+### PCA ######
+
+apply(X = genes_table_2[,c(-1,-5)], MARGIN = 2, FUN = mean)
+apply(X = genes_table_2[,c(-1,-5)], MARGIN = 2, FUN = var)
+
+pca <- prcomp(genes_table_2[,c(-1,-5)], scale = TRUE)
+names(pca)
+#Center:Almacena la media antes de estandarizar
+#Scale:Almacena la sd antes de estandarizar.
+#rotatio: contiene el vecor propio
+#El número de componentes principales será 4 (número de variables)
+pca$rotation
+head(pca$x) ## calcula los vectores propios por cada gen.
+dim(pca$x)
+biplot(x = pca, scale = 0, cex = 0.6, col = c("blue4", "brown3"))
+
+## Proporción de variabilidad explicada por cada componente.
+library(ggplot2)
+pca$sdev^2
+prop_varianza <- pca$sdev^2 / sum(pca$sdev^2)
+prop_varianza
+
+ggplot(data = data.frame(prop_varianza, pc = 1:3),
+       aes(x = pc, y = prop_varianza)) +
+  geom_col(width = 0.3) +
+  scale_y_continuous(limits = c(0,1)) +
+  theme_bw() +
+  labs(x = "Componente principal",
+       y = "Prop. de varianza explicada")
+
+prop_varianza_acum <- cumsum(prop_varianza)
+prop_varianza_acum
+
+ggplot(data = data.frame(prop_varianza_acum, pc = 1:3),
+       aes(x = pc, y = prop_varianza_acum, group = 1)) +
+  geom_point() +
+  geom_line() +
+  theme_bw() +
+  labs(x = "Componente principal",
+       y = "Prop. varianza explicada acumulada")
+
+
+### PCA con el código de la profe ####
+pcalym<-dudi.pca(genes_table_2[,c(-1,-5)],scannf=FALSE, nf=2)
+names(pcalym)
+pve <- 100*pcalym$eig/sum(pcalym$eig)
+pve
+cumsum(pve)
+barplot(pve,horiz=TRUE,col=viridis(27),
+        names.arg=c('Ax1','Ax2','Ax3'),las=1,
+        main="Inercia por componente")
+plot(pcalym$li)
+s.corcircle(pcalym$co)
+##### K means ########
+corrplot::corrplot(cor(genes_table_2[,c(-1,-5)]))
+#clusters por k-means cuando se sabe el numero de clusters
+cl<-kmeans(genes_table_2[,c(-1,-5)],3)
+dim(genes_table_2[,c(-1,-5)])
+names(cl)
+s.class(pcalym$li, as.factor(cl$cluster), col=c(1,2,3))
+table(cl$cluster)
+#### Tabla de la cantidad de blancos por miRNA por cada cluster ####
+genes_table_3 <- read_excel("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/Tabla_topo_TesisL_V3_AG.xlsx")
+miRNA_1<-as.factor(as.vector(genes_table_3$`hsa-miR-363-5p`))
+miRNA_2<-as.factor(as.vector(genes_table_3$`hsa-miR-323b-3p`))
+miRNA_3<-as.factor(as.vector(genes_table_3$`hsa-miR-526a-5p`))
+miRNA_4<-as.factor(as.vector(genes_table_3$`hsa-miR-499a-5p`))
+miRNA_5<-as.factor(as.vector(genes_table_3$`hsa-miR-612`))
+miRNA_6<-as.factor(as.vector(genes_table_3$`hsa-miR-208b-3p`))
+
+table_miRNA<-list(table(miRNA_1,cl$cluster),table(miRNA_2,cl$cluster),table(miRNA_3,cl$cluster),
+     table(miRNA_4,cl$cluster),table(miRNA_5,cl$cluster),table(miRNA_6,cl$cluster))
+
+
+

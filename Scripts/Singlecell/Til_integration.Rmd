@@ -457,9 +457,3 @@ dim(NK_genes)
 head(NK_genes)
 write.csv(NK_genes, file = "DEG_NK_cells_casos_vs_controles.csv", row.names = TRUE)
 
-
-git rm Scripts/Singlecell/PMBC_integration.Rmd
-git rm Scripts/Singlecell/Til_integration.R
-git add Scripts/Singlecell/Til_integration.Rmd
-git add Scripts/Singlecell/Til_casosycontroles.Rmd
-git status
