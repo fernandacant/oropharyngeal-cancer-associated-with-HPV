@@ -1,0 +1,200 @@
+---
+title: "GSE209670"
+output: html_document
+---
+
+### Lectura de los datos ####
+library(writexl)
+Tabla_mirna <- read.csv("PROYECTO/GSE670/Tabla_mirna.csv")
+Tabla_mirna <- Tabla2_mirna
+View(Tabla_mirna)
+tabla_mirna_definitiva<-cbind(Tabla_mirna[1:828,1],
+                              Tabla_mirna[1:828,2:7],
+                              Tabla_mirna[1:828,12:17],
+                              Tabla_mirna[1:828,8:11],
+                              Tabla_mirna[1:828,18:21])##El anterior comando organiza la tabla
+View(tabla_mirna_definitiva)
+
+Dat_def <- tabla_mirna_definitiva[,c(-1,-6,-7,-12,-13)]## Balanceo de la base de datos quitando 4 muestras correspondientes a positivo.
+rownames(Dat_def) <- tabla_mirna_definitiva[,1]
+dim(Dat_def)## Da 17 columnas porque tenemos la columna de nombres.
+#Filtro de ceros
+Dat2<-Dat_def[rowSums(Dat_def)!=0,]
+dim(Dat_def)
+dim(Dat2)## No se redujeron valores.
+#Cambiando los nombres de la columna 
+colnames(Dat2) = c("Neg1","Neg2","Neg3","Neg4","Neg5","Neg6",
+                   "Neg7","Neg8","Pos1","Pos2",
+                   "Pos3","Pos4","Pos5","Pos6","Pos7","Pos8")
+##Filtro por varianza pequeña
+Dat3<-Dat2[0<apply(Dat2,1,var),] #No es necesario eliminar por varianza pequeña
+dim(Dat2)
+dim(Dat3) ## Las dimensiones son las mismas entonces no se hace filtro por varianza 
+##Filtro por lecturas muy grandes 
+modE_1_p=Dat2[150000>apply(Dat2,1,max),]
+dim(Dat2)
+dim(modE_1_p) #No se hizo reducción por valores grandes
+Dat2<-modE_1_p ## Guardando los datos en nuestra base Dat2
+### Primer Boxplot #######
+boxplot(Dat2, boxwex=0.7, notch=T, outline=FALSE, las=2,col = cm.colors(10),
+        main="Boxplot datos originales y filtrados.",ylab="Conteos")
+corrplot(cor(Dat2))
+## Eliminar muestras poco correlacionadas 
+## No fue necesario todas se ven altamente correlacionadas
+### Creacion de la tabla para DEseq2 ####
+coldata1 <- data.frame(condition=factor(c(rep('Negativo',8),rep('Positivo',8))))
+rownames(coldata1) <- colnames(Dat2)
+coldata1$condition <- relevel(coldata1$condition, ref='Negativo')#Condición control
+coldata1
+###Modelado utilizando Deseq2 ###
+dds0_1 <- DESeqDataSetFromMatrix(
+  countData = Dat2,
+  colData = coldata1,
+  design= ~ condition)
+##Normalización ####
+#No se elimina ninguna muestra puesto que ningún sizefactor es mayor que 3 ni menor que 0.3
+dds0_1 <- estimateSizeFactors(dds0_1)
+sizeFactors(dds0_1)
+head(counts(dds0_1,normalized=TRUE))
+boxplot(counts(dds0_1,normalized=TRUE), boxwex=0.7, notch=T, outline=FALSE, las=2,col = cm.colors(10),
+        main="Boxplot datos Normalizados.",ylab="Conteos")
+norm<-counts(dds0_1,normalized=TRUE)
+corrplot.mixed(cor(norm))
+##test de Wald
+dds0_1 <- DESeq(dds0_1, test="Wald")
+res0 <- results(dds0_1)
+resOrder <- res0[order(res0$padj), ]
+dim(res0)
+dim(resOrder)
+#write.csv(as.data.frame(resOrder),file="valores_p_mirna.csv")
+
+##Valores p ajustados 
+filtered_res <- resOrder[complete.cases(resOrder) & resOrder$padj< 0.05, ]
+# Crear el nuevo DataFrame con la columna 'p' y mantener los nombres de fila originales
+Padj0_mirna <- data.frame(p = filtered_res$padj, row.names = rownames(filtered_res))
+
+dim(Padj0_mirna)##Obtenemos solo 1 con valor p 0.001
+Padj0_mirna <- na.omit(Padj0_mirna)
+dim(Padj0_mirna)
+
+E1_mirna<-Tabla_mirna[as.numeric(rownames(Padj0)),]
+dim(E1_mirna)
+Lista_mirna <- Padj0_mirna
+write.csv(as.data.frame(Lista_mirna), file="Lista_mirna.csv")
+
+####################################################################################
+library(readxl)
+library(dplyr)
+mirna <- read_excel("C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/MiRNA/mirna.xlsx",sheet = 1)
+mirna2<-as.data.frame(mirna)
+#View(mirna2)
+#Buscando en el miRNA 1
+nombres_df_1 <- mirna2[2:530,1]
+genes_coincidentes_1 <- intersect(rownames(E1_308), nombres_df_1)
+genes_coincidentes_1
+#Buscando en el miRNA 2
+nombres_df_2 <- mirna2[2:324,2]
+genes_coincidentes_2 <- intersect(rownames(E1_308), nombres_df_2)
+genes_coincidentes_2
+#Buscando en el miRNA 3
+nombres_df_3 <- as.character(mirna2[2:451,3])
+genes_coincidentes_3 <- intersect(rownames(E1_308), nombres_df_3)
+genes_coincidentes_3
+#Buscando en el miRNA 4
+nombres_df_4 <- mirna2[2:592,4]
+genes_coincidentes_4 <- intersect(rownames(E1_308), nombres_df_4)
+genes_coincidentes_4
+#Buscando en el miRNA 5
+nombres_df_5 <- mirna2[2:738,5]
+genes_coincidentes_5 <- intersect(rownames(E1_308), nombres_df_5)
+genes_coincidentes_5
+#Buscando en el miRNA 6
+nombres_df_6 <- mirna2[2:204,6]
+genes_coincidentes_6 <- intersect(rownames(E1_308), nombres_df_6)
+genes_coincidentes_6
+### Creando el vector con todos #####
+vector_mirna_308 <- unique(c(genes_coincidentes_1, genes_coincidentes_2, 
+                         genes_coincidentes_3, genes_coincidentes_4, 
+                         genes_coincidentes_5, genes_coincidentes_6))
+
+##Union 
+todos_los_nombres <- unique(c(nombres_df_1, nombres_df_2, nombres_df_3, nombres_df_4, nombres_df_5, nombres_df_6))
+nombres_filas3 <- data.frame(Filas = todos_los_nombres)
+#write_xlsx(nombres_filas3, "C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/MiRNA/miRNA_union_308.xlsx")
+
+############## BASE GSE927 ##############
+#Buscando en el miRNA 1
+nombres_df_1 <- mirna2[2:530,1]
+genes_coincidentes_1 <- intersect(rownames(E1_927), nombres_df_1)
+genes_coincidentes_1
+#Buscando en el miRNA 2
+nombres_df_2 <- mirna2[2:324,2]
+genes_coincidentes_2 <- intersect(rownames(E1_927), nombres_df_2)
+genes_coincidentes_2
+#Buscando en el miRNA 3
+nombres_df_3 <- as.character(mirna2[2:451,3])
+genes_coincidentes_3 <- intersect(rownames(E1_927), nombres_df_3)
+genes_coincidentes_3
+#Buscando en el miRNA 4
+nombres_df_4 <- mirna2[2:592,4]
+genes_coincidentes_4 <- intersect(rownames(E1_927), nombres_df_4)
+genes_coincidentes_4
+#Buscando en el miRNA 5
+nombres_df_5 <- mirna2[2:738,5]
+genes_coincidentes_5 <- intersect(rownames(E1_927), nombres_df_5)
+genes_coincidentes_5
+#Buscando en el miRNA 6
+nombres_df_6 <- mirna2[2:204,6]
+genes_coincidentes_6 <- intersect(rownames(E1_927), nombres_df_6)
+genes_coincidentes_6
+### Creando el vector con todos #####
+vector_mirna_927 <- unique(c(genes_coincidentes_1, genes_coincidentes_2, 
+                             genes_coincidentes_3, genes_coincidentes_4, 
+                             genes_coincidentes_5, genes_coincidentes_6))
+
+##Union 
+todos_los_nombres <- unique(c(nombres_df_1, nombres_df_2, nombres_df_3, nombres_df_4, nombres_df_5, nombres_df_6))
+nombres_filas3 <- data.frame(Filas = todos_los_nombres)
+#write_xlsx(nombres_filas3, "C:/Users/andre/OneDrive/Escritorio/Andrés 2024/2024-1/Tesis Luisa/MiRNA/miRNA_union_927.xlsx")
+
+
+############## BASE GSE72536 ##############
+#Buscando en el miRNA 1
+nombres_df_1 <- mirna2[2:530,1]
+genes_coincidentes_1 <- intersect(rownames(E1), nombres_df_1)
+genes_coincidentes_1
+#Buscando en el miRNA 2
+nombres_df_2 <- mirna2[2:324,2]
+genes_coincidentes_2 <- intersect(rownames(E1), nombres_df_2)
+genes_coincidentes_2
+#Buscando en el miRNA 3
+nombres_df_3 <- as.character(mirna2[2:451,3])
+genes_coincidentes_3 <- intersect(rownames(E1), nombres_df_3)
+genes_coincidentes_3
+#Buscando en el miRNA 4
+nombres_df_4 <- mirna2[2:592,4]
+genes_coincidentes_4 <- intersect(rownames(E1), nombres_df_4)
+genes_coincidentes_4
+#Buscando en el miRNA 5
+nombres_df_5 <- mirna2[2:738,5]
+genes_coincidentes_5 <- intersect(rownames(E1), nombres_df_5)
+genes_coincidentes_5
+#Buscando en el miRNA 6
+nombres_df_6 <- mirna2[2:204,6]
+genes_coincidentes_6 <- intersect(rownames(E1), nombres_df_6)
+genes_coincidentes_6
+### Creando el vector con todos #####
+vector_mirna <- unique(c(genes_coincidentes_1, genes_coincidentes_2, 
+                         genes_coincidentes_3, genes_coincidentes_4, 
+                         genes_coincidentes_5, genes_coincidentes_6))
+
+##Union 
+todos_los_nombres <- unique(c(nombres_df_1, nombres_df_2, nombres_df_3, nombres_df_4, nombres_df_5, nombres_df_6))
+nombres_filas3 <- data.frame(Filas = todos_los_nombres)
+#write_xlsx
+
+################ INTERSECCION ####################
+E1_seleccionada_536 <- unique(E1[which(rownames(E1) %in% vector_mirna), , drop = FALSE])
+E1_seleccionada_308 <- unique(E1[which(rownames(E1_308) %in% vector_mirna_308), , drop = FALSE])
+E1_seleccionada_927 <- unique(E1[which(rownames(E1_927) %in% vector_mirna_927), , drop = FALSE])
+Interseccon_completa<- intersect(intersect(rownames(E1_seleccionada_927),rownames(E1_seleccionada_308)),rownames(E1_seleccionada_536))

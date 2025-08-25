@@ -1,0 +1,202 @@
+---
+title: "GSE536"
+output: html_document
+---
+
+## Librerias necesarias  ####
+require(DESeq2)
+require(ggplot2)
+require(corrplot)
+library(tidyverse)
+library(apeglm)
+library(vsn)
+library(readr)
+#### Librerias para el análisis cluster 
+library(GEOquery)
+library(ggplot2)
+require(DESeq2)
+require(ggplot2)
+require(corrplot)
+library(apeglm)
+library(ade4)
+library(vsn)
+library(viridis)
+library(readxl)
+library(GEOquery)
+library(limma)
+library(umap)
+### Librerias para redes de coexpresion 
+library(affy) #Funciones para el análisis exploratorio de datos de microarreglos (oligonucleótidos).
+library(siggenes) #Identificación de genes expresados diferencialmente por el método SAM (Significance Analysis of Microarrays)
+library(minet) #Inferencia de RCG usando información mutua.
+library(igraph) #Análisis y manipulación de redes
+library(infotheo)#del CRAN
+library(oligo)
+library(GEOquery)
+library(limma)
+library(umap)
+library(corrplot)
+library(Matrix)
+library(genefilter)
+### Librerias para el enriquecimiento
+library(org.Hs.eg.db)
+install.packages("remotes")
+remotes::install_github("YuLab-SMU/clusterProfiler")
+library(clusterProfiler)
+library(enrichplot)
+library(pathview)
+
+### Lectura de los datos ####
+Tabla_completa <- read.csv("PROYECTO/GSE536/Tabla_completa.txt", row.names=1, sep="")
+View(Tabla_completa)
+Dat <- Tabla_completa
+dim(Dat)
+rownames(Dat) <- Tabla_completa$genes
+#Filtro de ceros
+Dat=Dat[rowSums(Dat[,-1])!=0,]
+Dat2=Dat[,-1]
+dim(Dat)
+dim(Dat2)## Se redujeron  23368-20862=2506 valores.
+#Cambiando los nombres de la columna 
+colnames(Dat2) = c("Caso1","Caso2","Caso3","Caso4","Caso5","Caso6",
+                   "Caso7","Caso8","Caso9","Caso10","Control1","Control2",
+                   "Control3","Control4","Control5","Control6","Control7","Control8",
+                   "Control9","Control10","Control11","Control12","Control13")
+##Filtro por varianza pequeña
+Dat3<-Dat2[0<apply(Dat2,1,var),] #No es necesario eliminar por varianza pequeña
+dim(Dat2)
+dim(Dat3) ## Las dimensiones son las mismas entonces no se hace filtro por varianza 
+##Filtro por lecturas muy grandes 
+modE_1_p=Dat2[150000>apply(Dat2,1,max),]
+modE_1_p=modE_1_p[150000>apply(Dat2,1,max),]
+dim(Dat2)
+dim(modE_1_p) #Se redujeron 20862-20856= 6 valores por valores muy grandes
+Dat2<-modE_1_p ## Guardando los datos en nuestra base Dat2
+### Primer Boxplot #######
+boxplot(Dat2, boxwex=0.7, notch=T, outline=FALSE, las=2,col = cm.colors(10),
+        main="Boxplot datos originales y filtrados.",ylab="Conteos")
+
+corrplot(cor(Dat2))
+## Eliminar muestras poco correlacionadas 
+columnas <- c(7,8,23)
+modE_Dat2 <- subset(Dat2, select=-columnas)
+corrplot(cor(modE_Dat2))
+dim(modE_Dat2)
+boxplot(modE_Dat2, boxwex=0.7, notch=T, outline=FALSE, las=2,col = cm.colors(10),
+        main="Boxplot datos originales y filtrados.",ylab="Conteos")
+### Creacion de la tabla para DEseq2 ####
+coldata2 <- data.frame(
+  site = factor(c("OPC", "OPC","OPC","OPC","OPC","OPC","OPC","OPC","OPC","OPC","Oral", "Oral", "Larynx", "Oral", "Oral", "OPC", "Larynx", "OPC", "OPC", "Larynx")),
+  condition = factor(c("pos","pos","pos","pos","pos","pos","pos","pos","neg","neg","neg","neg","neg","neg","neg", "neg","neg","neg","neg","neg"))
+)
+coldata2
+dim(coldata2)
+dim(modE_Dat2)
+
+# Eliminar filas con NA en modE_Dat2
+modE_Dat2 <- modE_Dat2[complete.cases(modE_Dat2), ]
+
+
+rownames(coldata2)= colnames(modE_Dat2)
+coldata2$condition <- relevel(coldata2$condition, ref = 'neg')
+## Pruebita usando lo de la profe 
+coldata1 <- data.frame(condition=factor(c(rep('Caso',8),rep('Control',12))))
+rownames(coldata1) = colnames(modE_Dat2)
+coldata1$condition <- relevel(coldata1$condition, ref='Control')#Condición control
+coldata1
+###Modelado utilizando Deseq2 ###
+dds0_1_rnaseq <- DESeqDataSetFromMatrix(
+  countData = modE_Dat2,
+  colData = coldata1,
+  design= ~ condition)
+##Normalización ####
+#No se elimina ninguna muestra puesto que ningún sizefactor es mayor que 3 ni menor que 0.3
+dds0_1_rnaseq <- estimateSizeFactors(dds0_1_rnaseq)
+sizeFactors(dds0_1_rnaseq)
+head(counts(dds0_1_rnaseq,normalized=TRUE))
+boxplot(counts(dds0_1_rnaseq,normalized=TRUE), boxwex=0.7, notch=T, outline=FALSE, las=2,col = cm.colors(10),
+        main="Boxplot datos Normalizados.",ylab="Conteos")
+norm_dseq<-counts(dds0_1_rnaseq,normalized=TRUE)
+corrplot.mixed(cor(norm_dseq))
+#### Obteniendo los DEGs primera base de datos RNAseq####
+##test de Wald
+dds0_1_rnaseq <- DESeq(dds0_1_rnaseq, test="Wald")
+res0_rnaseq <- results(dds0_1_rnaseq)
+resOrder_rnaseq <- dds0_1_rnaseq[order(res0_rnaseq$padj), ]
+dim(res0_rnaseq)
+dim(resOrder_rnaseq)
+#write.csv(as.data.frame(resOrder_rnaseq),file="valores_p_536.csv")
+
+##Valores p ajustados 
+filtered_res <- res0_rnaseq[complete.cases(res0_rnaseq) & res0_rnaseq$padj < 0.001, ]
+# Crear el nuevo DataFrame con la columna 'p' y mantener los nombres de fila originales
+Padj0_rnaseq <- data.frame(p = filtered_res$padj, row.names = rownames(filtered_res))
+res0_rna <- data.frame(LFC = filtered_res$log2FoldChange, row.names = rownames(filtered_res2))
+dim(Padj0_rnaseq)#Setienen 2997 DEGS
+Padj0_rnaseq <- na.omit(Padj0_rnaseq)
+#res0_rna=data.frame(lfc=res0_rnaseq$log2FoldChange[res0_rnaseq$padj<0.001])
+res0_rna <- na.omit(res0_rna)
+dim(Padj0_rnaseq)#al quitar los NA se tienen 503 DEGs
+dim(res0_rna)
+#write.csv(as.data.frame(Padj0_rnaseq), file="Padj_536.csv")
+### Gráfico sdvs mean y MA-plot ######
+plotDispEsts(dds0_1_rnaseq,xlab="Media de los conteos normalizados",ylab="Dispersión",main="Gráfico sd vs media") # estimaciones dispersiones
+plotMA(dds0_1_rnaseq,xlab="Media de los conteos normalizados",main="Gráfico MA")
+##### Cluster análisis (Primera base de datos RNAseq)#############
+#E1_536<-modE_Dat2[as.numeric(rownames(Padj0_rnaseq)),]
+dim(E1_536)
+
+Lista_536 <-cbind(Padj0_rnaseq, res0_rna)
+write.csv(as.data.frame(Lista_536), file="Lista_536.csv")
+
+
+####################ENRIQUECIMIENTO##############################################333
+
+DE_genes <- c(rownames(Padj0_rnaseq))
+
+# Realizar el análisis de enriquecimiento funcional utilizando la base de datos GO
+enrichGO <- enrichGO(gene          = DE_genes,
+                     OrgDb         = org.Hs.eg.db,
+                     keyType       = "SYMBOL",  # Cambiar a "SYMBOL" si tus genes están representados por su símbolo de gen
+                     ont           = "BP",
+                     pAdjustMethod = "fdr",     # Otros métodos de ajuste: "none", "holm", "hochberg", "hommel", "bonferroni", "BH", "BY", "fdr"
+                     pvalueCutoff  = 0.05,      # Cambiar a "pvalueCutoff" si prefieres usar un valor de corte para los valores de p sin ajustar
+                     qvalueCutoff  = 0.05,
+                     readable      = TRUE)
+
+
+
+head(enrichGO)
+barplot(enrichGO)
+dotplot(enrichGO)
+cnetplot(enrichGO)
+##hsa01100 es para vias metabolicas principales, hsa05200 para enfermedad viral, hsa01230 metabolismo de ac grasos
+##hsa04010 crecimiento epidermico  
+pathview(gene.data = DE_genes, species = "hsa", pathway.id = "hsa05200", file.out = "pathway_visualization.pdf")
+
+enrichGO_CC <- enrichGO(gene          = DE_genes,
+                     OrgDb         = org.Hs.eg.db,
+                     keyType       = "SYMBOL", 
+                     ont           = "CC",
+                     pAdjustMethod = "fdr",    
+                     pvalueCutoff  = 0.05,      
+                     qvalueCutoff  = 0.05,
+                     readable      = TRUE)
+
+head(enrichGO_CC)
+barplot(enrichGO_CC)
+dotplot(enrichGO_CC)
+cnetplot(enrichGO_CC)
+
+enrichGO_MF <- enrichGO(gene          = DE_genes,
+                     OrgDb         = org.Hs.eg.db,
+                     keyType       = "SYMBOL",  
+                     ont           = "MF",
+                     pAdjustMethod = "fdr",    
+                     pvalueCutoff  = 1,     
+                     qvalueCutoff  = 0.05,
+                     readable      = TRUE)
+head(enrichGO_MF)
+barplot(enrichGO_MF)
+dotplot(enrichGO_MF)
+cnetplot(enrichGO_MF)

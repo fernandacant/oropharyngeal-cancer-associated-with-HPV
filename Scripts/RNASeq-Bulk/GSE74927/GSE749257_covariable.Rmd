@@ -1,0 +1,215 @@
+---
+title: "GSE749257_covariable"
+output: html_document
+---
+
+## Librerias necesarias  ####
+require(DESeq2)
+require(ggplot2)
+require(corrplot)
+library(tidyverse)
+library(apeglm)
+library(vsn)
+library(readr)
+#### Librerias para el análisis cluster 
+library(GEOquery)
+library(ggplot2)
+require(DESeq2)
+require(ggplot2)
+require(corrplot)
+library(apeglm)
+library(ade4)
+library(vsn)
+library(viridis)
+library(readxl)
+library(GEOquery)
+library(limma)
+library(umap)
+### Librerias para redes de coexpresion 
+library(affy) #Funciones para el análisis exploratorio de datos de microarreglos (oligonucleótidos).
+library(siggenes) #Identificación de genes expresados diferencialmente por el método SAM (Significance Analysis of Microarrays)
+library(minet) #Inferencia de RCG usando información mutua.
+library(igraph) #Análisis y manipulación de redes
+library(infotheo)#del CRAN
+library(oligo)
+library(GEOquery)
+library(limma)
+library(umap)
+library(corrplot)
+library(Matrix)
+library(genefilter)
+### Librerias para el enriquecimiento
+library(org.Hs.eg.db)
+install.packages("remotes")
+remotes::install_github("YuLab-SMU/clusterProfiler")
+library(clusterProfiler)
+library(enrichplot)
+library(pathview)
+## Carga de los datos #2###
+Tabla927 <- read.delim("PROYECTO/GSE927/GSE74927_all_sample_raw_count.txt")
+Tabla927 <- GSE74927_all_sample_raw_count
+#view(Tabla927)
+dim(Tabla927)
+## Cambio de nombre y reorganización de la tabla ####
+rownames(Tabla927)<- Tabla927$symbol
+colnames(Tabla927)<- c("GEN","Negativo1" ,"Positivo1" ,"Positivo2", "Negativo2", "Positivo3", "Positivo4", "Positivo5", "Positivo6",
+                       "Negativo3", "Negativo4", "Negativo5", "Negativo6", "Positivo7", "Negativo7", "Negativo8", "Positivo8", "Negativo9",
+                       "Negativo10", "Positivo9", "Positivo10", "Positivo11", "Negativo11", "Positivo12", "Negativo12", "Negativo13", "Positivo13",
+                       "Negativo14","Positivo14", "Positivo15", "Positivo16", "Positivo17", "Negativo15", "Negativo16", "Negativo17", "Negativo18",
+                       "Positivo18") 
+tabla927neg<-paste0("Negativo",1:18)
+tabla927pos<-paste0("Positivo", 1:18)
+tabla927neg<-Tabla927[tabla927neg]
+tabla927pos<-Tabla927[tabla927pos]
+Tabla927<-cbind(tabla927neg,tabla927pos)
+## Algunos filtros necesarios ####
+
+#Filtro de ceros
+
+Tabla927_2<-Tabla927[rowSums(Tabla927)!=0,]
+dim(Tabla927)
+dim(Tabla927_2) ## Se redujeron un total de 23367-20847 = 2520 valores.
+
+##Filtro por varianza pequeña
+Tabla927_3<-Tabla927_2[0<apply(Tabla927_2,1,var),] #No es necesario eliminar por varianza pequeña
+dim(Tabla927_2)
+dim(Tabla927_3)
+##Filtro por lecturas muy grandes 
+Tabla927_4=Tabla927_3[1500>apply(Tabla927_3,1,max),]
+dim(Tabla927_3)
+dim(Tabla927_4) #Se redujeron 20847-15416= 5431 valores por valores muy grandes
+Tabla927<-Tabla927_4 ## Renombrando la tabla final filtrada.
+### Primer Boxplot #######
+boxplot(Tabla927, boxwex=0.7, notch=T, outline=FALSE, las=2,col = cm.colors(10),
+        main="Boxplot datos originales.",ylab="Conteos")
+corrplot(cor(Tabla927))
+### Creacion de la tabla para DEseq2 ####
+coldata1 <- data.frame(condition=factor(c(rep('Negativo',18),rep('Positivo',18))), stage = c("IV", "IV",
+                       "IV", "II", "IV", "IV", "IV", "II", "III", "IV","IV","IV","IV","II", "IV", "II",
+                       "IV", "IV","IV", "IV", "III", "III", "IV", "IV","IV","IV","IV","III", "II", "IV",
+                       "IV","IV","IV","IV","IV","IV"))
+rownames(coldata1) = colnames(Tabla927)
+coldata1$condition <- relevel(coldata1$condition, ref='Negativo')#Condición control
+
+coldata1
+###Modelado utilizando Deseq2 ###
+Tabla927_rnaseq <- DESeqDataSetFromMatrix(
+  countData =Tabla927,
+  colData = coldata1,
+  design= ~ condition + stage)
+##Normalización ####
+#No se elimina ninguna muestra puesto que ningún sizefactor es mayor que 3 ni menor que 0.3
+Tabla927_rnaseq <- estimateSizeFactors(Tabla927_rnaseq)
+sizeFactors(Tabla927_rnaseq)
+head(counts(Tabla927_rnaseq,normalized=TRUE))
+boxplot(counts(Tabla927_rnaseq,normalized=TRUE), boxwex=0.7, notch=T, outline=FALSE, las=2,col = cm.colors(10),
+        main="Boxplot datos Normalizados.",ylab="Conteos")
+norm_dseq<-counts(Tabla927_rnaseq,normalized=TRUE)
+corrplot.mixed(cor(norm_dseq))
+#### Obteniendo los DEGs primera base de datos RNAseq####
+##test de Wald
+Tabla927_rnaseq <- DESeq(Tabla927_rnaseq, test="LRT", reduced=~1) 
+res0_rnaseq <- results(Tabla927_rnaseq)
+resOrder_rnaseq <- Tabla927_rnaseq[order(res0_rnaseq$padj), ]
+dim(res0_rnaseq)
+dim(resOrder_rnaseq)
+#write.csv(as.data.frame(resOrder),file="valores_p.csv")
+##Valores p ajustados 
+# Filtrar res0_rnaseq por la condición y almacenar los resultados en filtered_res
+filtered_res <- res0_rnaseq[complete.cases(res0_rnaseq) & res0_rnaseq$padj < 0.001, ]
+# Crear el nuevo DataFrame con la columna 'p' y mantener los nombres de fila originales
+Padj0_rnaseq <- data.frame(p = filtered_res$padj, row.names = rownames(filtered_res)) ##solo 4 degs
+dim(Padj0_rnaseq)
+res0_rna <- data.frame(LFC = filtered_res$log2FoldChange, row.names = rownames(filtered_res))
+Lista_cov_927 <-cbind(Padj0_rnaseq, res0_rna)
+#write.csv(as.data.frame(Padj0_rnaseq),file="Cov_927.csv")
+#write.csv(as.data.frame(Lista_cov_927), file="Lista_cov_927.csv")
+
+
+plotCounts(Tabla927_rnaseq, gene=which.min (res0_rnaseq$padj), intgroup="stage")
+plotCounts(Tabla927_rnaseq, gene=which.min (res0_rnaseq$padj), intgroup="condition")
+
+##poniendo colores
+## por estado de la enfermedad
+colores1 <- ifelse(Tabla927_rnaseq$condition == "Positivo", "darkred", "green")
+plotCounts(Tabla927_rnaseq, 
+           gene = which.min(res0_rnaseq$padj), 
+           intgroup = "stage",
+           col = colores1,
+           pch = 16)  # especificar que los símbolos sean círculos llenos
+legend("topright", legend = levels(Tabla927_rnaseq$condition), fill = unique(colores1), title = "VPH", xpd = TRUE)
+
+##por estado del VPH
+
+colores_etapas <- c("II" = "blue", "III" = "green", "IV" = "darkred", "I" = "orange") 
+colores_etapas <- c("II" = "blue", "III" = "green", "IV" = "darkred", "I" = "orange") 
+colores2 <- colores_etapas[Tabla927_rnaseq$stage]
+plotCounts(Tabla927_rnaseq, 
+           gene = which.min(res0_rnaseq$padj), 
+           intgroup = "condition",
+           col = colores2,
+           pch = 16)
+legend("topright", legend = levels(Tabla927_rnaseq$stage), fill = unique(colores2), title = "Stage")
+
+
+## por estado de la enfermedad
+
+###plots de 9 genes por estado de la enfermedad
+colores_vph <- c("Negativo" = "blue", "Positivo" = "red")
+par(mfrow=c(3,3), mar=c(2,2,1,1))
+for (i in 1:9) {
+  plotCounts(Tabla927_rnaseq, 
+             gene = rownames(Tabla927_rnaseq)[i], 
+             intgroup = c("stage"),
+             pch = 20,
+             cex = 1.5,
+             col = colores_vph[as.character(Tabla927_rnaseq$condition)])
+}
+
+##Plot de los 9 genes con menor valor p por estado de la enfermedad
+indices_genes_ordenados <- order(res0_rnaseq$padj)
+indices_9_genes_menor_p <- indices_genes_ordenados[1:9]
+nombres_9_genes_menor_p <- rownames(Tabla927_rnaseq)[indices_9_genes_menor_p]
+colores_vph <- c("Negativo" = "blue", "Positivo" = "red")
+
+par(mfrow=c(3,3), mar=c(2,2,1,1))
+
+for (i in 1:9) {
+  plotCounts(Tabla927_rnaseq, 
+             gene = nombres_9_genes_menor_p[i], 
+             intgroup = c("stage"),
+             pch = 20,
+             cex = 1.5,
+             col = colores_vph[as.character(Tabla927_rnaseq$condition)])
+}
+
+##Plots de 9 genes por estado de VPH
+colores_vph <- c("II" = "blue", "III" = "green", "IV" = "darkred", "I" = "orange")
+par(mfrow=c(3,3), mar=c(2,2,1,1))
+for (i in 1:9) 
+  plotCounts(Tabla927_rnaseq, 
+             gene = rownames(Tabla927_rnaseq)[i], 
+             intgroup = c("condition"),
+             pch = 20,
+             cex = 1.5,
+             col = colores_vph[as.character(Tabla927_rnaseq$stage)])
+
+
+##############################PCA ##############
+
+vsd <- vst(Tabla927_rnaseq, blind = FALSE)
+
+# Realizar PCA
+pcaData <- plotPCA(vsd, intgroup = c("condition", "stage"), returnData = TRUE)
+
+# Calcular porcentaje de varianza explicada por PC1 y PC2
+percentVar <- round(100 * attr(pcaData, "percentVar"))
+
+ggplot(pcaData, aes(x = PC1, y = PC2, color = condition, shape = stage)) +
+  geom_point(size = 3) +
+  xlab(paste0("PC1 (", percentVar[1], "%)")) +
+  ylab(paste0("PC2 (", percentVar[2], "%)")) +
+  theme_minimal() +
+  labs(title = "PCA por condición y estadío") +
+  theme(plot.title = element_text(hjust = 0.5))
+
