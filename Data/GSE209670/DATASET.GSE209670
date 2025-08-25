@@ -1,0 +1,11 @@
+
+Query DataSets for GSE209670
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE209670
+Contributor(s)	Hofmann L, Abou Kors T, Medyany V, Theodoraki M
+Status	Public on Aug 31, 2022
+Title	Exosomal miRNA profiling of plasma- and saliva-derived exosomes
+Organism	Homo sapiens
+Experiment type	Non-coding RNA profiling by array
+Summary	Exosomes were isolated from plasma and saliva of healthy individuals and head and neck cancer (HNSCC) patients. miRNA profiling of plasma- and saliva-derived exosomes was performed using nCounter SPRINT system. Diagnostic panels were selected from the exosomal miRNA profile.
+ 	
+Overall design	Exosomal miRNA profiles from plasma and saliva of healthy individuals (n=5) and head and neck cancer patients (n=11) were analyzed regarding their diagnostic and prognostic potential, correlated to clinical data and integrated into network analysis.

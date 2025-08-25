@@ -1,0 +1,11 @@
+
+Query DataSets for GSE205308
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi
+Contributor(s)	Unger K, Hess J, Belka CB, Landry G
+Status	Public on Apr 24, 2023
+Title	Deep learning for explainable prediction of HPV-status in head and neck cancer using transcriptome data organized as pathway treemaps
+Organism	Homo sapiens
+Experiment type	Expression profiling by high throughput sequencing
+Summary	We propose a convolutional neural network (CNN) model predicting HPV-status in head and neck cancer from transcriptome data allowing identification of molecular pathways driving individual classifier decisions. The CNN was trained on transcriptome data from 264 (13% HPV-positive) and tested on 85 (25% HPV-positive) patients after transformation into 2D-treemaps representing molecular pathways. Model stability was assessed by shuffling pathways within 2D-images. Grad-CAM saliency was used to quantify pathways contribution to CNN decisions. For comparison, a logistic regression model was generated. The CNN achieved ROC-AUC/PR-AUC of 0.96/0.90 for all treemap variants. Saliency heatmaps consistently found KRAS-, spermatogenesis-, bile acid metabolism- and inflammatory-signaling as most informative for classification of HPV-positive-, and MYC-targets-, epithelial-mesenchymal transition and protein-secretion pathways for HPV-negative patients. The regression-based 18-gene model achieved a ROC-AUC/PR-AUC of 0.97/0.97. We present a high-performance explainable CNN-model from transcriptome data of a typically sized oncological cohort providing molecular pathway information at the individual level.
+
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi

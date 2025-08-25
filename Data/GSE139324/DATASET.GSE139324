@@ -1,0 +1,11 @@
+
+Query DataSets for GSE139324
+https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE139324
+Contributor(s)	Cillo AR, Bruno TC, Ferris RL, Vignali DA
+Status	Public on Nov 13, 2019
+Title	Immune landscape of viral- and carcinogen-drived head and neck cancer
+Organism	Homo sapiens
+Experiment type	Expression profiling by high throughput sequencing
+Summary	Head and neck squamous cell carcinoma (HNSCC) arises through exposure to environmental carcinogens or malignant transformation by human papillomavirus (HPV). Here, we assessed the transcriptional profiles of 131,224 single cells from peripheral and intra-tumoral CD45+ immune populations from HPV– and HPV+ HNSCC and healthy donors. A spectrum of transcriptional signatures in immune lineages ranging from similar to highly divergent was present in the tumor microenvironments (TME) in HPV– and HPV+ HNSCC. CD8+ and regulatory CD4+ T cells were similar in HPV– and HPV+ HNSCC, compared to significant differences between helper CD4+ T cells, B cells and myeloid cells. Further dissection of the major immune lineages identified unique cell states and differentiation trajectories. We contextualized our results by performing multispectral immunofluorescence and evaluating putative cell-cell communication based on spatial proximity, and found longer progression free survival in patients with enrichment of a CD4+ T follicular helper cell signature.
+ 	
+Overall design	Total of 63 samples were analyzed by scRNAseq. Of these, 26 samples were paired peripheral blood mononuclear cells and tumor infiltrating immune cells from HNSCC patients (18 HPV- and 8 HPV+), 6 were peripheral blood mononuclear cells from healthy donors, and 5 were tissue resident immune cells from healthy donor tonsils.
